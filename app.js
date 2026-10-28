@@ -83,7 +83,7 @@ $("askBtn").onclick = async () => {
   $("askBtn").disabled = true;
   showMarkdown("Thinking…");
   try {
-    const model = localStorage.getItem("model") || "gemini-2.5-flash";
+    const model = localStorage.getItem("model") || "gemini-3.8-flash";
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       {
