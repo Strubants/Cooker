@@ -50,7 +50,27 @@ function renderSuggestions() {
   }
 }
 
+const priority = new Set();
+
+function renderPriority() {
+  const box = $("priority");
+  box.innerHTML = "";
+  priority.forEach((p) => !items.includes(p) && priority.delete(p));
+  items.forEach((name) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip" + (priority.has(name) ? " on" : "");
+    b.textContent = name;
+    b.onclick = () => {
+      priority.has(name) ? priority.delete(name) : priority.add(name);
+      renderPriority();
+    };
+    box.append(b);
+  });
+}
+
 function render() {
+  renderPriority();
   $("list").innerHTML = "";
   items.forEach((name, i) => {
     const li = document.createElement("li");
@@ -125,6 +145,7 @@ $("askBtn").onclick = async () => {
     (only
       ? "Use ONLY these ingredients (plus salt, pepper, water, and basic oil). "
       : "Mark any extra ingredients I would need to buy. ") +
+    (priority.size ? `Prioritize recipes that use these ingredients: ${[...priority].join(", ")}. ` : "") +
     "Return ONLY a JSON array of recipes, each shaped like " +
     '{"title": string, "ingredients": string[] (with amounts), "steps": string[]}. ' +
     "Keep steps short.";
