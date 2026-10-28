@@ -16,6 +16,12 @@ ul { list-style: none; padding: 0; margin: 0; }
 li { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; }
 li button { background: none; color: #c62828; }
 label { display: block; margin: 10px 0; }
+h2 { font-size: 1.1rem; margin: 24px 0 0; }
+details { background: #fff; border-radius: 8px; margin-top: 8px; padding: 10px 12px; }
+summary { font-weight: 600; cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { padding: 6px 12px; border-radius: 16px; background: #eef1ea; border: 1px solid #cfd6c8; font-size: 0.95rem; }
+.chip.on { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 .hint { color: #777; font-size: 0.9rem; }
 #result { background: #fff; border-radius: 8px; padding: 12px; line-height: 1.5; }
 #result:empty { display: none; }

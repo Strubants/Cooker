@@ -4,6 +4,52 @@ const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
 let items = load("items", []);
 
+const SUGGESTIONS = {
+  "Basics": ["salt", "pepper", "olive oil", "sunflower oil", "butter", "sugar", "flour", "vinegar", "honey", "eggs", "milk"],
+  "Vegetables": ["onion", "garlic", "potato", "sweet potato", "carrot", "tomato", "bell pepper", "cucumber", "zucchini", "broccoli", "cauliflower", "spinach", "lettuce", "mushrooms", "leek", "cabbage", "corn", "peas", "green beans", "eggplant", "spring onion", "ginger", "chili pepper", "pak choi", "bean sprouts"],
+  "Fruit": ["lemon", "lime", "apple", "banana", "orange", "avocado", "coconut"],
+  "Meat & fish": ["chicken breast", "chicken thighs", "minced beef", "minced pork", "bacon", "sausage", "ham", "beef steak", "pork chops", "salmon", "cod", "tuna", "shrimp"],
+  "Dairy": ["cheese", "parmesan", "mozzarella", "feta", "cream", "yogurt", "sour cream", "cream cheese", "coconut milk"],
+  "Grains & pasta": ["rice", "jasmine rice", "basmati rice", "spaghetti", "penne", "noodles", "rice noodles", "couscous", "oats", "bread", "tortillas", "breadcrumbs", "panko"],
+  "Cans & jars": ["canned tomatoes", "tomato paste", "passata", "chickpeas", "kidney beans", "lentils", "canned tuna", "stock cubes", "peanut butter", "mustard", "mayonnaise", "ketchup"],
+  "Herbs": ["basil", "parsley", "coriander", "thyme", "rosemary", "oregano", "mint", "chives", "bay leaf", "dill", "lemongrass", "curry leaves"],
+  "Spices (general)": ["paprika powder", "smoked paprika", "chili flakes", "cayenne", "cumin", "coriander seeds", "turmeric", "cinnamon", "nutmeg", "cloves", "mixed herbs", "italian herbs", "garlic powder", "onion powder", "black pepper corns", "mustard seeds", "vanilla"],
+  "Indian": ["garam masala", "curry powder", "cardamom", "fenugreek", "tandoori masala", "tikka masala paste", "ghee", "paneer", "fennel seeds", "asafoetida"],
+  "Asian": ["soy sauce", "fish sauce", "oyster sauce", "hoisin sauce", "mirin", "rice vinegar", "sesame oil", "sesame seeds", "red curry paste", "yellow curry paste", "green curry paste", "shrimp paste", "sambal", "sriracha", "gochujang", "miso", "tamarind", "star anise", "five spice", "szechuan pepper", "wasabi", "nori", "tofu", "kecap manis", "palm sugar", "cornstarch"],
+  "Mexican & other": ["taco seasoning", "chipotle", "jalapeno", "salsa", "black beans", "harissa", "za'atar", "tahini"],
+};
+
+function renderSuggestions() {
+  const have = new Set(items.map((i) => i.toLowerCase()));
+  const box = $("suggestions");
+  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.cat));
+  box.innerHTML = "";
+  for (const [cat, names] of Object.entries(SUGGESTIONS)) {
+    const d = document.createElement("details");
+    d.dataset.cat = cat;
+    d.open = open.has(cat);
+    const s = document.createElement("summary");
+    s.textContent = cat;
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    for (const name of names) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (have.has(name) ? " on" : "");
+      b.textContent = name;
+      b.onclick = () => {
+        if (have.has(name)) items = items.filter((i) => i.toLowerCase() !== name);
+        else items.unshift(name);
+        save("items", items);
+        render();
+      };
+      chips.append(b);
+    }
+    d.append(s, chips);
+    box.append(d);
+  }
+}
+
 function render() {
   $("list").innerHTML = "";
   items.forEach((name, i) => {
@@ -22,6 +68,7 @@ function render() {
     $("list").append(li);
   });
   $("empty").hidden = items.length > 0;
+  renderSuggestions();
 }
 
 $("addForm").onsubmit = (e) => {
