@@ -18,6 +18,8 @@
   <nav>
     <button class="tab active" data-tab="pantry">Ingredients</button>
     <button class="tab" data-tab="recipes">Recipes</button>
+    <button class="tab" data-tab="saved">Saved</button>
+    <button class="tab" data-tab="marinades">Marinades</button>
   </nav>
 
   <main>
@@ -52,6 +54,42 @@
       </label>
       <button id="askBtn" class="primary">What can I cook?</button>
       <div id="result"></div>
+    </section>
+
+    <section id="saved" hidden>
+      <p id="savedEmpty" class="hint">No saved recipes yet. Save one from the Recipes tab.</p>
+      <div id="savedList"></div>
+    </section>
+
+    <section id="marinades" hidden>
+      <h2>New marinade</h2>
+      <label>Name (optional)
+        <input id="mName" autocomplete="off" placeholder="e.g. Thai chicken">
+      </label>
+      <div class="row">
+        <input id="mGrams" type="number" min="0" step="50" placeholder="grams" class="num">
+        <select id="mMeat"></select>
+      </div>
+      <div class="row">
+        <input id="mAmount" type="number" min="0" step="0.25" placeholder="1" class="num">
+        <select id="mUnit" class="unit">
+          <option>tsp</option>
+          <option>tbsp</option>
+          <option>ml</option>
+          <option>g</option>
+          <option>pinch</option>
+          <option>pcs</option>
+        </select>
+        <select id="mItem"></select>
+        <button id="mAddLine" type="button">+</button>
+      </div>
+      <ul id="mDraft"></ul>
+      <p id="mMsg" class="hint"></p>
+      <button id="mSave" type="button" class="primary">Save marinade</button>
+
+      <h2>My marinades</h2>
+      <p id="mEmpty" class="hint">No marinades yet.</p>
+      <div id="mList"></div>
     </section>
   </main>
 

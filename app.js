@@ -69,6 +69,7 @@ function render() {
   });
   $("empty").hidden = items.length > 0;
   renderSuggestions();
+  renderMarinadeOptions();
 }
 
 $("addForm").onsubmit = (e) => {
@@ -82,11 +83,11 @@ $("addForm").onsubmit = (e) => {
   }
 };
 
+const SECTIONS = ["pantry", "recipes", "saved", "marinades"];
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => {
     document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
-    $("pantry").hidden = t.dataset.tab !== "pantry";
-    $("recipes").hidden = t.dataset.tab !== "recipes";
+    SECTIONS.forEach((s) => ($(s).hidden = s !== t.dataset.tab));
   };
 });
 
@@ -125,7 +126,9 @@ $("askBtn").onclick = async () => {
     (only
       ? "Use ONLY these ingredients (plus salt, pepper, water, and basic oil). "
       : "Mark any extra ingredients I would need to buy. ") +
-    "For each recipe give: a title, ingredients used, and short numbered steps. Be concise.";
+    "Return ONLY a JSON array of recipes, each shaped like " +
+    '{"title": string, "ingredients": string[] (with amounts), "steps": string[]}. ' +
+    "Keep steps short.";
 
   $("askBtn").disabled = true;
   showMarkdown("Thinking…");
@@ -139,12 +142,13 @@ $("askBtn").onclick = async () => {
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: "You are a practical home-cooking assistant." }] },
           contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" },
         }),
       }
     );
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-    showMarkdown(data.candidates[0].content.parts.map((p) => p.text).join(""));
+    showRecipes(JSON.parse(data.candidates[0].content.parts.map((p) => p.text).join("")));
   } catch (err) {
     showMarkdown("Error: " + err.message);
   } finally {
@@ -152,5 +156,156 @@ $("askBtn").onclick = async () => {
   }
 };
 
+const el = (tag, props = {}, ...kids) => {
+  const n = Object.assign(document.createElement(tag), props);
+  n.append(...kids);
+  return n;
+};
+
+function stars(value, onChange) {
+  const box = el("div", { className: "stars" });
+  for (let i = 1; i <= 5; i++) {
+    box.append(el("button", {
+      type: "button",
+      className: "star" + (i <= value ? " on" : ""),
+      textContent: "★",
+      title: `${i} stars`,
+      onclick: () => onChange(i === value ? 0 : i),
+    }));
+  }
+  return box;
+}
+
+function recipeBody(r) {
+  return [
+    el("b", {}, "Ingredients"),
+    el("ul", {}, ...(r.ingredients ?? []).map((x) => el("li", {}, String(x)))),
+    el("b", {}, "Steps"),
+    el("ol", {}, ...(r.steps ?? []).map((x) => el("li", {}, String(x)))),
+  ];
+}
+
+function showRecipes(list) {
+  $("result").innerHTML = "";
+  list.forEach((r) => {
+    const btn = el("button", { type: "button", className: "small", textContent: "Save recipe" });
+    btn.onclick = () => {
+      savedRecipes.unshift({ id: Date.now() + Math.random(), title: r.title, ingredients: r.ingredients, steps: r.steps, rating: 0 });
+      save("saved", savedRecipes);
+      btn.disabled = true;
+      btn.textContent = "Saved";
+      renderSaved();
+    };
+    $("result").append(el("div", { className: "card" }, el("h3", {}, r.title), ...recipeBody(r), btn));
+  });
+}
+
+let savedRecipes = load("saved", []);
+
+function renderSaved() {
+  const box = $("savedList");
+  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.id));
+  box.innerHTML = "";
+  $("savedEmpty").hidden = savedRecipes.length > 0;
+  savedRecipes.forEach((r) => {
+    const details = el("details", {}, el("summary", {}, "Show recipe"), ...recipeBody(r));
+    details.dataset.id = r.id;
+    details.open = open.has(String(r.id));
+    const del = el("button", { type: "button", className: "small", textContent: "Delete" });
+    del.onclick = () => {
+      if (!confirm(`Delete "${r.title}"?`)) return;
+      savedRecipes = savedRecipes.filter((x) => x.id !== r.id);
+      save("saved", savedRecipes);
+      renderSaved();
+    };
+    const rate = stars(r.rating, (v) => {
+      r.rating = v;
+      save("saved", savedRecipes);
+      renderSaved();
+    });
+    box.append(el("div", { className: "card" }, el("div", { className: "head" }, el("h3", {}, r.title), rate), details, del));
+  });
+}
+
+let marinades = load("marinades", []);
+let draft = [];
+
+function fillSelect(sel) {
+  const prev = sel.value;
+  sel.innerHTML = "";
+  items.forEach((n) => sel.append(el("option", {}, n)));
+  if (items.includes(prev)) sel.value = prev;
+}
+
+function renderMarinadeOptions() {
+  fillSelect($("mMeat"));
+  fillSelect($("mItem"));
+}
+
+function renderDraft() {
+  $("mDraft").innerHTML = "";
+  draft.forEach((l, i) => {
+    const x = el("button", { type: "button", textContent: "✕", onclick: () => { draft.splice(i, 1); renderDraft(); } });
+    $("mDraft").append(el("li", {}, el("span", {}, `${l.amount} ${l.unit} ${l.name}`), x));
+  });
+}
+
+$("mAddLine").onclick = () => {
+  const amount = parseFloat($("mAmount").value);
+  const name = $("mItem").value;
+  if (!(amount > 0) || !name) {
+    $("mMsg").textContent = "Enter an amount and pick an ingredient.";
+    return;
+  }
+  $("mMsg").textContent = "";
+  draft.push({ amount, unit: $("mUnit").value, name });
+  $("mAmount").value = "";
+  renderDraft();
+};
+
+$("mSave").onclick = () => {
+  const grams = parseFloat($("mGrams").value);
+  const meat = $("mMeat").value;
+  if (!(grams > 0) || !meat || !draft.length) {
+    $("mMsg").textContent = "Add the meat amount, a meat, and at least one spice.";
+    return;
+  }
+  marinades.unshift({ id: Date.now(), name: $("mName").value.trim(), grams, meat, lines: draft, rating: 0 });
+  save("marinades", marinades);
+  draft = [];
+  $("mName").value = "";
+  $("mGrams").value = "";
+  $("mMsg").textContent = "";
+  renderDraft();
+  renderMarinades();
+};
+
+function renderMarinades() {
+  const box = $("mList");
+  box.innerHTML = "";
+  $("mEmpty").hidden = marinades.length > 0;
+  marinades.forEach((m) => {
+    const title = m.name || `${m.meat} marinade`;
+    const del = el("button", { type: "button", className: "small", textContent: "Delete" });
+    del.onclick = () => {
+      if (!confirm(`Delete "${title}"?`)) return;
+      marinades = marinades.filter((x) => x.id !== m.id);
+      save("marinades", marinades);
+      renderMarinades();
+    };
+    const rate = stars(m.rating, (v) => {
+      m.rating = v;
+      save("marinades", marinades);
+      renderMarinades();
+    });
+    box.append(el("div", { className: "card" },
+      el("div", { className: "head" }, el("h3", {}, title), rate),
+      el("ul", {}, el("li", {}, el("b", {}, `${m.grams} g ${m.meat}`)), ...m.lines.map((l) => el("li", {}, `${l.amount} ${l.unit} ${l.name}`))),
+      del));
+  });
+}
+
 render();
+renderSaved();
+renderMarinades();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

@@ -23,6 +23,22 @@ summary { font-weight: 600; cursor: pointer; }
 .chip { padding: 6px 12px; border-radius: 16px; background: #eef1ea; border: 1px solid #cfd6c8; font-size: 0.95rem; }
 .chip.on { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 .hint { color: #777; font-size: 0.9rem; }
-#result { background: #fff; border-radius: 8px; padding: 12px; line-height: 1.5; }
+#result { line-height: 1.5; }
 #result:empty { display: none; }
+.tab { font-size: 0.9rem; padding: 12px 4px; }
+.card { background: #fff; border-radius: 8px; padding: 12px; margin-top: 12px; }
+.card h3 { margin: 0; font-size: 1.05rem; }
+.card details { padding: 0; margin-top: 8px; }
+.card ul, .card ol { margin: 8px 0; padding-left: 20px; list-style: revert; }
+.card li { display: list-item; background: none; padding: 2px 0; margin: 0; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.row { display: flex; gap: 6px; margin: 8px 0; }
+.row select { flex: 1; min-width: 0; }
+.num { width: 80px; flex: none; }
+.unit { flex: none !important; width: 80px; }
+.stars { white-space: nowrap; }
+.star { background: none; padding: 2px; font-size: 1.4rem; color: #ccc; }
+.star.on { color: #f9a825; }
+.small { padding: 6px 10px; font-size: 0.9rem; margin-top: 8px; }
+#mDraft li { display: flex; }
 dialog { border: 0; border-radius: 12px; width: min(90vw, 400px); }
