@@ -69,7 +69,6 @@ function render() {
   });
   $("empty").hidden = items.length > 0;
   renderSuggestions();
-  renderMarinadeOptions();
 }
 
 $("addForm").onsubmit = (e) => {
@@ -230,18 +229,6 @@ function renderSaved() {
 let marinades = load("marinades", []);
 let draft = [];
 
-function fillSelect(sel) {
-  const prev = sel.value;
-  sel.innerHTML = "";
-  items.forEach((n) => sel.append(el("option", {}, n)));
-  if (items.includes(prev)) sel.value = prev;
-}
-
-function renderMarinadeOptions() {
-  fillSelect($("mMeat"));
-  fillSelect($("mItem"));
-}
-
 function renderDraft() {
   $("mDraft").innerHTML = "";
   draft.forEach((l, i) => {
@@ -252,20 +239,21 @@ function renderDraft() {
 
 $("mAddLine").onclick = () => {
   const amount = parseFloat($("mAmount").value);
-  const name = $("mItem").value;
+  const name = $("mItem").value.trim();
   if (!(amount > 0) || !name) {
-    $("mMsg").textContent = "Enter an amount and pick an ingredient.";
+    $("mMsg").textContent = "Enter an amount and an ingredient.";
     return;
   }
   $("mMsg").textContent = "";
   draft.push({ amount, unit: $("mUnit").value, name });
   $("mAmount").value = "";
+  $("mItem").value = "";
   renderDraft();
 };
 
 $("mSave").onclick = () => {
   const grams = parseFloat($("mGrams").value);
-  const meat = $("mMeat").value;
+  const meat = $("mMeat").value.trim();
   if (!(grams > 0) || !meat || !draft.length) {
     $("mMsg").textContent = "Add the meat amount, a meat, and at least one spice.";
     return;
@@ -275,6 +263,7 @@ $("mSave").onclick = () => {
   draft = [];
   $("mName").value = "";
   $("mGrams").value = "";
+  $("mMeat").value = "";
   $("mMsg").textContent = "";
   renderDraft();
   renderMarinades();
