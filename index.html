@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2e7d32">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <title>Kookapp</title>
+</head>
+<body>
+  <header>
+    <h1>Kookapp</h1>
+    <button id="settingsBtn" aria-label="Settings">⚙</button>
+  </header>
+
+  <nav>
+    <button class="tab active" data-tab="pantry">Ingredients</button>
+    <button class="tab" data-tab="recipes">Recipes</button>
+  </nav>
+
+  <main>
+    <section id="pantry">
+      <form id="addForm">
+        <input id="newItem" placeholder="Add ingredient (e.g. rice, 2 eggs)" autocomplete="off" required>
+        <button>Add</button>
+      </form>
+      <ul id="list"></ul>
+      <p id="empty" class="hint">No ingredients yet.</p>
+    </section>
+
+    <section id="recipes" hidden>
+      <label>Cuisine
+        <select id="cuisine">
+          <option value="">Any</option>
+          <option>Asian</option>
+          <option>Italian</option>
+          <option>Mexican</option>
+          <option>Indian</option>
+          <option>Mediterranean</option>
+          <option>Dutch</option>
+          <option>French</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" id="onlyHave"> Only use what I have (no shopping)
+      </label>
+      <button id="askBtn" class="primary">What can I cook?</button>
+      <div id="result"></div>
+    </section>
+  </main>
+
+  <dialog id="settings">
+    <form method="dialog">
+      <h2>Settings</h2>
+      <label>OpenAI API key
+        <input id="apiKey" type="password" autocomplete="off" placeholder="sk-...">
+      </label>
+      <label>Model
+        <input id="model" placeholder="gpt-4o-mini">
+      </label>
+      <p class="hint">Stored only on this device.</p>
+      <button value="save" class="primary">Save</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
