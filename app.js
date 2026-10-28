@@ -83,20 +83,21 @@ $("askBtn").onclick = async () => {
   $("askBtn").disabled = true;
   showMarkdown("Thinking…");
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: localStorage.getItem("model") || "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a practical home-cooking assistant." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+    const model = localStorage.getItem("model") || "gemini-2.5-flash";
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: "You are a practical home-cooking assistant." }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        }),
+      }
+    );
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-    showMarkdown(data.choices[0].message.content);
+    showMarkdown(data.candidates[0].content.parts.map((p) => p.text).join(""));
   } catch (err) {
     showMarkdown("Error: " + err.message);
   } finally {
