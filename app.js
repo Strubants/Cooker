@@ -135,6 +135,7 @@ document.querySelectorAll(".tab").forEach((t) => {
 const PROVIDERS = {
   gemini: { keyLabel: "Gemini API key", keyHint: "AIza...", models: ["gemini-3.8-flash", "gemini-2.5-pro"] },
   claude: { keyLabel: "Claude API key", keyHint: "sk-ant-...", models: ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-5"] },
+  openai: { keyLabel: "OpenAI API key", keyHint: "sk-...", models: ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4o"] },
 };
 const CUSTOM = "__custom";
 
@@ -196,6 +197,20 @@ async function askAI(prompt) {
   const p = currentProvider();
   const key = localStorage.getItem(`key_${p}`);
   const model = localStorage.getItem(`model_${p}`) || PROVIDERS[p].models[0];
+
+  if (p === "openai") {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
+    return data.choices[0].message.content;
+  }
 
   if (p === "claude") {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
