@@ -54,20 +54,43 @@ const priority = new Set();
 const CATEGORY_OF = Object.fromEntries(
   Object.entries(SUGGESTIONS).flatMap(([cat, names]) => names.map((n) => [n, cat]))
 );
+const CATEGORIES = [...Object.keys(SUGGESTIONS), "Other"];
+
+// Category chosen when adding manually, keyed by lowercase name.
+let cats = load("cats", {});
+const categoryOf = (n) => cats[n.toLowerCase()] ?? CATEGORY_OF[n.toLowerCase()] ?? "Other";
+
+function groupByCategory(list) {
+  const groups = {};
+  list.forEach((name) => (groups[categoryOf(name)] ??= []).push(name));
+  return groups;
+}
 
 function renderPriority() {
   const box = $("priority");
   const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.cat));
   box.innerHTML = "";
   priority.forEach((p) => !items.includes(p) && priority.delete(p));
-  $("priSummary").textContent = "Prioritize ingredients" + (priority.size ? ` (${priority.size} selected)` : "");
 
-  const groups = {};
-  items.forEach((name) => {
-    const cat = CATEGORY_OF[name.toLowerCase()] ?? "Other";
-    (groups[cat] ??= []).push(name);
-  });
-  [...Object.keys(SUGGESTIONS), "Other"].filter((c) => groups[c]).forEach((cat) => {
+  const picked = $("priorityPicked");
+  picked.innerHTML = "";
+  if (priority.size) {
+    picked.append(el("span", { className: "hint" }, "Prioritized:"));
+    priority.forEach((name) => {
+      picked.append(el("button", {
+        type: "button",
+        className: "chip on",
+        textContent: name + " ✕",
+        onclick: () => {
+          priority.delete(name);
+          renderPriority();
+        },
+      }));
+    });
+  }
+
+  const groups = groupByCategory(items);
+  CATEGORIES.filter((c) => groups[c]).forEach((cat) => {
     const d = document.createElement("details");
     d.dataset.cat = cat;
     d.open = open.has(cat);
@@ -91,46 +114,71 @@ function renderPriority() {
   });
 }
 
+const seenCats = new Set();
+
 function render() {
   renderPriority();
-  $("list").innerHTML = "";
-  items.forEach((name, i) => {
-    const li = document.createElement("li");
-    const span = document.createElement("span");
-    span.textContent = name;
-    const del = document.createElement("button");
-    del.textContent = "✕";
-    del.setAttribute("aria-label", `Remove ${name}`);
-    del.onclick = () => {
-      items.splice(i, 1);
-      save("items", items);
-      render();
-    };
-    li.append(span, del);
-    $("list").append(li);
+  const box = $("list");
+  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.cat));
+  box.innerHTML = "";
+  const groups = groupByCategory(items);
+  CATEGORIES.filter((c) => groups[c]).forEach((cat) => {
+    const rows = groups[cat].map((name) => {
+      const del = el("button", {
+        type: "button",
+        textContent: "✕",
+        title: `Remove ${name}`,
+        onclick: () => {
+          items = items.filter((i) => i !== name);
+          delete cats[name.toLowerCase()];
+          save("items", items);
+          save("cats", cats);
+          render();
+        },
+      });
+      return el("li", {}, el("span", {}, name), del);
+    });
+    // New categories start expanded; afterwards the user's choice is kept.
+    const d = el("details", { open: !seenCats.has(cat) || open.has(cat) }, el("summary", {}, `${cat} (${rows.length})`), el("ul", { className: "group" }, ...rows));
+    d.dataset.cat = cat;
+    seenCats.add(cat);
+    box.append(d);
   });
   $("empty").hidden = items.length > 0;
+  $("pantryCount").textContent = items.length
+    ? `${items.length} ingredient${items.length === 1 ? "" : "s"} in your kitchen`
+    : "Your kitchen is empty, add some ingredients to get started.";
   renderSuggestions();
 }
+
+CATEGORIES.forEach((c) => $("newCat").append(new Option(c, c)));
+$("newCat").value = "Other";
+$("newItem").oninput = () => {
+  const guess = CATEGORY_OF[$("newItem").value.trim().toLowerCase()];
+  if (guess) $("newCat").value = guess;
+};
 
 $("addForm").onsubmit = (e) => {
   e.preventDefault();
   const v = $("newItem").value.trim();
-  if (v) {
+  if (v && !items.some((i) => i.toLowerCase() === v.toLowerCase())) {
     items.unshift(v);
+    cats[v.toLowerCase()] = $("newCat").value;
     save("items", items);
-    $("newItem").value = "";
+    save("cats", cats);
     render();
   }
+  $("newItem").value = "";
 };
 
 const SECTIONS = ["pantry", "recipes", "saved", "marinades"];
-document.querySelectorAll(".tab").forEach((t) => {
-  t.onclick = () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
-    SECTIONS.forEach((s) => ($(s).hidden = s !== t.dataset.tab));
-  };
-});
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  SECTIONS.forEach((s) => ($(s).hidden = s !== name));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showTab(t.dataset.tab)));
+$("goIngredients").onclick = () => showTab("pantry");
 
 const PROVIDERS = {
   gemini: { keyLabel: "Gemini API key", keyHint: "AIza...", models: ["gemini-3.8-flash", "gemini-2.5-pro"] },

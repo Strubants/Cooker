@@ -16,19 +16,20 @@
   </header>
 
   <nav>
-    <button class="tab active" data-tab="pantry">Ingredients</button>
-    <button class="tab" data-tab="recipes">Find Recipe</button>
+    <button class="tab active" data-tab="recipes">Find Recipe</button>
+    <button class="tab" data-tab="pantry">Ingredients</button>
     <button class="tab" data-tab="saved">Saved</button>
     <button class="tab" data-tab="marinades">Marinades</button>
   </nav>
 
   <main>
-    <section id="pantry">
+    <section id="pantry" hidden>
       <form id="addForm">
         <input id="newItem" placeholder="Add ingredient (e.g. rice, 2 eggs)" autocomplete="off" required>
+        <select id="newCat" aria-label="Group"></select>
         <button>Add</button>
       </form>
-      <ul id="list"></ul>
+      <div id="list"></div>
       <p id="empty" class="hint">No ingredients yet.</p>
 
       <h2>Quick add</h2>
@@ -36,7 +37,14 @@
       <div id="suggestions"></div>
     </section>
 
-    <section id="recipes" hidden>
+    <section id="recipes">
+      <div class="hero">
+        <div class="hero-emoji" aria-hidden="true">🍅 🥦 🧄 🌶️ 🍋</div>
+        <h2>What shall we cook tonight?</h2>
+        <p id="pantryCount"></p>
+        <button id="goIngredients" type="button" class="ghost">+ Add ingredients</button>
+      </div>
+
       <label>Cuisine
         <select id="cuisine">
           <option value="">Any</option>
@@ -49,9 +57,12 @@
           <option>French</option>
         </select>
       </label>
-      <label>
-        <input type="checkbox" id="onlyHave"> Only use what I have (no shopping)
+      <label class="switch">
+        <input type="checkbox" id="onlyHave">
+        <span class="track"></span>
+        <span class="switch-text"><b>Only use what I have</b><small>No shopping needed, just my ingredients</small></span>
       </label>
+      <div id="priorityPicked" class="picked"></div>
       <details id="priorityBox" class="prio">
         <summary id="priSummary">Prioritize ingredients</summary>
         <p class="hint">Tap to select, e.g. things that expire soon.</p>
@@ -121,6 +132,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
