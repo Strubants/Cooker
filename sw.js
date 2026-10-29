@@ -1,4 +1,4 @@
-const CACHE = "kookapp-v2";
+const CACHE = "kookapp-v3";
 const FILES = ["./", "index.html", "app.js", "style.css", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES))));
