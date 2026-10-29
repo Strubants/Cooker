@@ -54,11 +54,54 @@ const priority = new Set();
 const CATEGORY_OF = Object.fromEntries(
   Object.entries(SUGGESTIONS).flatMap(([cat, names]) => names.map((n) => [n, cat]))
 );
-const CATEGORIES = [...Object.keys(SUGGESTIONS), "Other"];
+// User-editable groups; "Other" always exists as the fallback.
+let groups = load("groups", null) ?? Object.keys(SUGGESTIONS);
+const allGroups = () => [...groups, "Other"];
+const selected = new Set();
 
-// Category chosen when adding manually, keyed by lowercase name.
+// Group chosen by the user, keyed by lowercase name.
 let cats = load("cats", {});
-const categoryOf = (n) => cats[n.toLowerCase()] ?? CATEGORY_OF[n.toLowerCase()] ?? "Other";
+const categoryOf = (n) => {
+  const g = cats[n.toLowerCase()] ?? CATEGORY_OF[n.toLowerCase()];
+  return allGroups().includes(g) ? g : "Other";
+};
+
+// Make every ingredient's current group explicit before groups are renamed or deleted.
+function pinGroups() {
+  items.forEach((i) => (cats[i.toLowerCase()] = categoryOf(i)));
+}
+
+function createGroup() {
+  const name = (prompt("New group name") ?? "").trim();
+  if (!name) return null;
+  const existing = allGroups().find((g) => g.toLowerCase() === name.toLowerCase());
+  if (existing) return existing;
+  groups.push(name);
+  save("groups", groups);
+  return name;
+}
+
+function renameGroup(g) {
+  const name = (prompt("Rename group", g) ?? "").trim();
+  if (!name || name === g) return;
+  if (allGroups().some((x) => x.toLowerCase() === name.toLowerCase() && x !== g)) return alert("That group already exists.");
+  pinGroups();
+  groups[groups.indexOf(g)] = name;
+  for (const k in cats) if (cats[k] === g) cats[k] = name;
+  save("groups", groups);
+  save("cats", cats);
+  render();
+}
+
+function deleteGroup(g) {
+  if (!confirm(`Delete group "${g}"? Its ingredients move to Other.`)) return;
+  pinGroups();
+  groups = groups.filter((x) => x !== g);
+  for (const k in cats) if (cats[k] === g) cats[k] = "Other";
+  save("groups", groups);
+  save("cats", cats);
+  render();
+}
 
 function groupByCategory(list) {
   const groups = {};
@@ -90,7 +133,7 @@ function renderPriority() {
   }
 
   const groups = groupByCategory(items);
-  CATEGORIES.filter((c) => groups[c]).forEach((cat) => {
+  allGroups().filter((c) => groups[c]).forEach((cat) => {
     const d = document.createElement("details");
     d.dataset.cat = cat;
     d.open = open.has(cat);
@@ -116,19 +159,34 @@ function renderPriority() {
 
 const seenCats = new Set();
 
+function fillGroupSelects() {
+  for (const id of ["newCat", "moveTo"]) {
+    const sel = $(id);
+    const prev = sel.value;
+    sel.innerHTML = "";
+    allGroups().forEach((g) => sel.append(new Option(g, g)));
+    if (id === "moveTo") sel.append(new Option("+ New group…", "__new"));
+    sel.value = allGroups().includes(prev) || prev === "__new" ? prev : "Other";
+  }
+}
+
 function render() {
   renderPriority();
+  selected.forEach((n) => !items.includes(n) && selected.delete(n));
+  fillGroupSelects();
   const box = $("list");
   const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.cat));
   box.innerHTML = "";
-  const groups = groupByCategory(items);
-  CATEGORIES.filter((c) => groups[c]).forEach((cat) => {
-    const rows = groups[cat].map((name) => {
+  const byGroup = groupByCategory(items);
+  allGroups().filter((g) => g !== "Other" || byGroup[g]).forEach((cat) => {
+    const names = byGroup[cat] ?? [];
+    const rows = names.map((name) => {
       const del = el("button", {
         type: "button",
         textContent: "✕",
         title: `Remove ${name}`,
-        onclick: () => {
+        onclick: (e) => {
+          e.stopPropagation();
           items = items.filter((i) => i !== name);
           delete cats[name.toLowerCase()];
           save("items", items);
@@ -136,14 +194,30 @@ function render() {
           render();
         },
       });
-      return el("li", {}, el("span", {}, name), del);
+      const sel = selected.has(name);
+      return el("li", {
+        className: "pick" + (sel ? " sel" : ""),
+        onclick: () => {
+          sel ? selected.delete(name) : selected.add(name);
+          render();
+        },
+      }, el("span", {}, (sel ? "✓ " : "") + name), del);
     });
-    // New categories start expanded; afterwards the user's choice is kept.
-    const d = el("details", { open: !seenCats.has(cat) || open.has(cat) }, el("summary", {}, `${cat} (${rows.length})`), el("ul", { className: "group" }, ...rows));
+    const tools = cat === "Other" ? [] : [
+      el("button", { type: "button", className: "small", textContent: "Rename", onclick: () => renameGroup(cat) }),
+      el("button", { type: "button", className: "small", textContent: "Delete group", onclick: () => deleteGroup(cat) }),
+    ];
+    const body = rows.length
+      ? el("ul", { className: "group" }, ...rows)
+      : el("p", { className: "hint" }, "Empty. Select ingredients and move them here.");
+    // New groups start expanded; afterwards the user's choice is kept.
+    const d = el("details", { open: !seenCats.has(cat) || open.has(cat) }, el("summary", {}, `${cat} (${rows.length})`), body, el("div", { className: "tools" }, ...tools));
     d.dataset.cat = cat;
     seenCats.add(cat);
     box.append(d);
   });
+  $("moveBar").hidden = !selected.size;
+  $("moveCount").textContent = `${selected.size} selected`;
   $("empty").hidden = items.length > 0;
   $("pantryCount").textContent = items.length
     ? `${items.length} ingredient${items.length === 1 ? "" : "s"} in your kitchen`
@@ -151,11 +225,23 @@ function render() {
   renderSuggestions();
 }
 
-CATEGORIES.forEach((c) => $("newCat").append(new Option(c, c)));
-$("newCat").value = "Other";
+$("newGroupBtn").onclick = () => createGroup() && render();
+$("moveCancel").onclick = () => {
+  selected.clear();
+  render();
+};
+$("moveGo").onclick = () => {
+  const g = $("moveTo").value === "__new" ? createGroup() : $("moveTo").value;
+  if (!g) return;
+  selected.forEach((n) => (cats[n.toLowerCase()] = g));
+  selected.clear();
+  save("cats", cats);
+  render();
+};
+
 $("newItem").oninput = () => {
   const guess = CATEGORY_OF[$("newItem").value.trim().toLowerCase()];
-  if (guess) $("newCat").value = guess;
+  if (guess && allGroups().includes(guess)) $("newCat").value = guess;
 };
 
 $("addForm").onsubmit = (e) => {

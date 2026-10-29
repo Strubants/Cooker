@@ -63,6 +63,15 @@ dialog { border: 0; border-radius: 12px; width: min(90vw, 400px); }
 .switch-text small { color: #777; }
 .picked { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
 .picked:empty { display: none; }
+#pantry { padding-bottom: 70px; }
+.pick { cursor: pointer; }
+.group li.sel { background: #dcefd3; outline: 2px solid #2f6b3a; }
+.tools { display: flex; gap: 8px; margin-top: 8px; }
+.movebar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px 12px; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15); z-index: 10; }
+.movebar[hidden] { display: none; }
+.movebar select { flex: 1; width: auto; min-width: 0; }
+.movebar .small { margin: 0; }
+#moveGo { background: #2f6b3a; color: #fff; }
 .chop { background: #fff; border-radius: 8px; padding: 16px; margin-top: 12px; text-align: center; }
 .board { position: relative; background: #c8a165; border-radius: 8px; padding: 34px 12px 14px; }
 .leek { display: flex; height: 26px; }

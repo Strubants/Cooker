@@ -29,12 +29,21 @@
         <select id="newCat" aria-label="Group"></select>
         <button>Add</button>
       </form>
+      <button id="newGroupBtn" type="button" class="ghost small">+ New group</button>
+      <p class="hint">Tap ingredients to select them, then move them to any group.</p>
       <div id="list"></div>
       <p id="empty" class="hint">No ingredients yet.</p>
 
       <h2>Quick add</h2>
       <p class="hint">Tap to add, tap again to remove.</p>
       <div id="suggestions"></div>
+
+      <div id="moveBar" class="movebar" hidden>
+        <span id="moveCount"></span>
+        <select id="moveTo" aria-label="Move to group"></select>
+        <button id="moveGo" type="button" class="small">Move</button>
+        <button id="moveCancel" type="button" class="small">✕</button>
+      </div>
     </section>
 
     <section id="recipes">
@@ -132,6 +141,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
