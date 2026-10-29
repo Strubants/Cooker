@@ -51,21 +51,43 @@ function renderSuggestions() {
 }
 
 const priority = new Set();
+const CATEGORY_OF = Object.fromEntries(
+  Object.entries(SUGGESTIONS).flatMap(([cat, names]) => names.map((n) => [n, cat]))
+);
 
 function renderPriority() {
   const box = $("priority");
+  const open = new Set([...box.querySelectorAll("details[open]")].map((d) => d.dataset.cat));
   box.innerHTML = "";
   priority.forEach((p) => !items.includes(p) && priority.delete(p));
+  $("priSummary").textContent = "Prioritize ingredients" + (priority.size ? ` (${priority.size} selected)` : "");
+
+  const groups = {};
   items.forEach((name) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "chip" + (priority.has(name) ? " on" : "");
-    b.textContent = name;
-    b.onclick = () => {
-      priority.has(name) ? priority.delete(name) : priority.add(name);
-      renderPriority();
-    };
-    box.append(b);
+    const cat = CATEGORY_OF[name.toLowerCase()] ?? "Other";
+    (groups[cat] ??= []).push(name);
+  });
+  [...Object.keys(SUGGESTIONS), "Other"].filter((c) => groups[c]).forEach((cat) => {
+    const d = document.createElement("details");
+    d.dataset.cat = cat;
+    d.open = open.has(cat);
+    const s = document.createElement("summary");
+    s.textContent = cat;
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    groups[cat].forEach((name) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip" + (priority.has(name) ? " on" : "");
+      b.textContent = name;
+      b.onclick = () => {
+        priority.has(name) ? priority.delete(name) : priority.add(name);
+        renderPriority();
+      };
+      chips.append(b);
+    });
+    d.append(s, chips);
+    box.append(d);
   });
 }
 
@@ -110,15 +132,51 @@ document.querySelectorAll(".tab").forEach((t) => {
   };
 });
 
+const PROVIDERS = {
+  gemini: { keyLabel: "Gemini API key", keyHint: "AIza...", models: ["gemini-3.8-flash", "gemini-2.5-pro"] },
+  claude: { keyLabel: "Claude API key", keyHint: "sk-ant-...", models: ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-5"] },
+};
+const CUSTOM = "__custom";
+
+// Migrate settings from the single-provider version.
+if (localStorage.getItem("apiKey") && !localStorage.getItem("key_gemini")) {
+  localStorage.setItem("key_gemini", localStorage.getItem("apiKey"));
+  localStorage.setItem("model_gemini", localStorage.getItem("model") ?? "");
+}
+
+const currentProvider = () => localStorage.getItem("provider") || "gemini";
+
+function fillSettings(p) {
+  const cfg = PROVIDERS[p];
+  const model = localStorage.getItem(`model_${p}`) || cfg.models[0];
+  $("provider").value = p;
+  $("keyLabel").textContent = cfg.keyLabel;
+  $("apiKey").placeholder = cfg.keyHint;
+  $("apiKey").value = localStorage.getItem(`key_${p}`) ?? "";
+  const sel = $("modelSelect");
+  sel.innerHTML = "";
+  cfg.models.forEach((m) => sel.append(new Option(m, m)));
+  sel.append(new Option("Other (type name)…", CUSTOM));
+  const known = cfg.models.includes(model);
+  sel.value = known ? model : CUSTOM;
+  $("modelCustom").value = known ? "" : model;
+  $("modelCustom").hidden = known;
+}
+
+$("provider").onchange = () => fillSettings($("provider").value);
+$("modelSelect").onchange = () => ($("modelCustom").hidden = $("modelSelect").value !== CUSTOM);
+
 $("settingsBtn").onclick = () => {
-  $("apiKey").value = localStorage.getItem("apiKey") ?? "";
-  $("model").value = localStorage.getItem("model") ?? "";
+  fillSettings(currentProvider());
   $("settings").showModal();
 };
 $("settings").onclose = () => {
   if ($("settings").returnValue === "save") {
-    localStorage.setItem("apiKey", $("apiKey").value.trim());
-    localStorage.setItem("model", $("model").value.trim());
+    const p = $("provider").value;
+    const model = $("modelSelect").value === CUSTOM ? $("modelCustom").value.trim() : $("modelSelect").value;
+    localStorage.setItem("provider", p);
+    localStorage.setItem(`key_${p}`, $("apiKey").value.trim());
+    localStorage.setItem(`model_${p}`, model);
   }
 };
 
@@ -132,8 +190,48 @@ function showMarkdown(text) {
     .replace(/\n/g, "<br>");
 }
 
+const SYSTEM = "You are a practical home-cooking assistant.";
+
+async function askAI(prompt) {
+  const p = currentProvider();
+  const key = localStorage.getItem(`key_${p}`);
+  const model = localStorage.getItem(`model_${p}`) || PROVIDERS[p].models[0];
+
+  if (p === "claude") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({ model, max_tokens: 4096, system: SYSTEM, messages: [{ role: "user", content: prompt }] }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
+    return data.content.map((c) => c.text ?? "").join("");
+  }
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
+  return data.candidates[0].content.parts.map((p) => p.text).join("");
+}
+
 $("askBtn").onclick = async () => {
-  const key = localStorage.getItem("apiKey");
+  const key = localStorage.getItem(`key_${currentProvider()}`);
   if (!key) return $("settingsBtn").click();
   if (!items.length) return showMarkdown("Add some ingredients first.");
 
@@ -153,22 +251,8 @@ $("askBtn").onclick = async () => {
   $("askBtn").disabled = true;
   showMarkdown("Thinking…");
   try {
-    const model = localStorage.getItem("model") || "gemini-3.8-flash";
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "You are a practical home-cooking assistant." }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-    showRecipes(JSON.parse(data.candidates[0].content.parts.map((p) => p.text).join("")));
+    const text = await askAI(prompt);
+    showRecipes(JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1)));
   } catch (err) {
     showMarkdown("Error: " + err.message);
   } finally {

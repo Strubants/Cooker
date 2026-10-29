@@ -42,3 +42,6 @@ summary { font-weight: 600; cursor: pointer; }
 .small { padding: 6px 10px; font-size: 0.9rem; margin-top: 8px; }
 #mDraft li { display: flex; }
 dialog { border: 0; border-radius: 12px; width: min(90vw, 400px); }
+.prio { margin: 12px 0; }
+.prio details { background: #f6f7f4; }
+.prio > summary { font-weight: 600; }

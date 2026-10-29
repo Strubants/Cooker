@@ -17,7 +17,7 @@
 
   <nav>
     <button class="tab active" data-tab="pantry">Ingredients</button>
-    <button class="tab" data-tab="recipes">Recipes</button>
+    <button class="tab" data-tab="recipes">Find Recipe</button>
     <button class="tab" data-tab="saved">Saved</button>
     <button class="tab" data-tab="marinades">Marinades</button>
   </nav>
@@ -52,14 +52,17 @@
       <label>
         <input type="checkbox" id="onlyHave"> Only use what I have (no shopping)
       </label>
-      <p class="hint">Prioritize ingredients (tap to select, e.g. things that expire soon):</p>
-      <div id="priority" class="chips"></div>
+      <details id="priorityBox" class="prio">
+        <summary id="priSummary">Prioritize ingredients</summary>
+        <p class="hint">Tap to select, e.g. things that expire soon.</p>
+        <div id="priority"></div>
+      </details>
       <button id="askBtn" class="primary">What can I cook?</button>
       <div id="result"></div>
     </section>
 
     <section id="saved" hidden>
-      <p id="savedEmpty" class="hint">No saved recipes yet. Save one from the Recipes tab.</p>
+      <p id="savedEmpty" class="hint">No saved recipes yet. Save one from the Find Recipe tab.</p>
       <div id="savedList"></div>
     </section>
 
@@ -98,13 +101,20 @@
   <dialog id="settings">
     <form method="dialog">
       <h2>Settings</h2>
-      <label>Gemini API key
-        <input id="apiKey" type="password" autocomplete="off" placeholder="AIza...">
+      <label>AI provider
+        <select id="provider">
+          <option value="gemini">Google Gemini</option>
+          <option value="claude">Anthropic Claude</option>
+        </select>
+      </label>
+      <label><span id="keyLabel">API key</span>
+        <input id="apiKey" type="password" autocomplete="off">
       </label>
       <label>Model
-        <input id="model" placeholder="gemini-3.8-flash">
+        <select id="modelSelect"></select>
       </label>
-      <p class="hint">Stored only on this device.</p>
+      <input id="modelCustom" placeholder="Model name" autocomplete="off" hidden>
+      <p class="hint">Stored only on this device. Claude needs an API key from console.anthropic.com (a Claude.ai subscription does not include API access).</p>
       <button value="save" class="primary">Save</button>
     </form>
   </dialog>
