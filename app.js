@@ -230,6 +230,45 @@ async function askAI(prompt) {
   return data.candidates[0].content.parts.map((p) => p.text).join("");
 }
 
+// Progress is simulated: it eases toward 90% and jumps to 100% when the answer arrives.
+function startLoading() {
+  const SEGMENTS = 12;
+  const segs = Array.from({ length: SEGMENTS }, (_, i) =>
+    `<span class="seg" style="background:${i < 3 ? "#f3f0cf" : i < 5 ? "#b7d68a" : "#4f9a2a"}"></span>`).join("");
+  $("result").innerHTML =
+    `<div class="chop"><div class="board"><div class="leek">${segs}</div><span class="knife">🔪</span></div>` +
+    `<div class="bar"><i></i></div><p class="hint"></p></div>`;
+  const root = $("result").firstElementChild;
+  const segEls = [...root.querySelectorAll(".seg")];
+  const knife = root.querySelector(".knife");
+  const fill = root.querySelector(".bar i");
+  const label = root.querySelector("p");
+  let p = 0;
+
+  const paint = () => {
+    const cut = Math.floor((p / 100) * SEGMENTS);
+    segEls.forEach((s, i) => s.classList.toggle("cut", i < cut));
+    knife.style.left = `calc(${p}% - 14px)`;
+    fill.style.width = p + "%";
+    label.textContent = p >= 100 ? "Done!" : `Chopping… ${Math.round(p)}%`;
+  };
+  paint();
+  const timer = setInterval(() => {
+    p += (90 - p) * 0.03;
+    paint();
+  }, 100);
+
+  return {
+    async finish() {
+      clearInterval(timer);
+      p = 100;
+      paint();
+      await new Promise((r) => setTimeout(r, 600));
+    },
+    stop: () => clearInterval(timer),
+  };
+}
+
 $("askBtn").onclick = async () => {
   const key = localStorage.getItem(`key_${currentProvider()}`);
   if (!key) return $("settingsBtn").click();
@@ -249,11 +288,14 @@ $("askBtn").onclick = async () => {
     "Keep steps short.";
 
   $("askBtn").disabled = true;
-  showMarkdown("Thinking…");
+  const loader = startLoading();
   try {
     const text = await askAI(prompt);
-    showRecipes(JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1)));
+    const recipes = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
+    await loader.finish();
+    showRecipes(recipes);
   } catch (err) {
+    loader.stop();
     showMarkdown("Error: " + err.message);
   } finally {
     $("askBtn").disabled = false;

@@ -45,3 +45,14 @@ dialog { border: 0; border-radius: 12px; width: min(90vw, 400px); }
 .prio { margin: 12px 0; }
 .prio details { background: #f6f7f4; }
 .prio > summary { font-weight: 600; }
+.chop { background: #fff; border-radius: 8px; padding: 16px; margin-top: 12px; text-align: center; }
+.board { position: relative; background: #c8a165; border-radius: 8px; padding: 34px 12px 14px; }
+.leek { display: flex; height: 26px; }
+.seg { flex: 1; transition: margin 0.3s, transform 0.3s; }
+.seg:first-child { border-radius: 13px 0 0 13px; }
+.seg:last-child { border-radius: 0 13px 13px 0; }
+.seg.cut { margin: 0 3px; transform: rotate(4deg); border-radius: 6px; }
+.knife { position: absolute; top: 2px; font-size: 1.8rem; transition: left 0.1s linear; animation: chopping 0.35s ease-in-out infinite alternate; }
+@keyframes chopping { from { transform: translateY(-4px) rotate(-10deg); } to { transform: translateY(8px) rotate(10deg); } }
+.bar { height: 8px; background: #e0e4dc; border-radius: 4px; margin-top: 12px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: #2e7d32; transition: width 0.1s linear; }
