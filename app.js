@@ -147,13 +147,25 @@ if (localStorage.getItem("apiKey") && !localStorage.getItem("key_gemini")) {
 
 const currentProvider = () => localStorage.getItem("provider") || "gemini";
 
+// Unsaved per-provider edits made in the dialog, so switching providers keeps what was typed.
+let drafts = {};
+let shown = null;
+
+const chosenModel = () => ($("modelSelect").value === CUSTOM ? $("modelCustom").value.trim() : $("modelSelect").value);
+
+function stashSettings() {
+  if (shown) drafts[shown] = { key: $("apiKey").value.trim(), model: chosenModel() };
+}
+
 function fillSettings(p) {
   const cfg = PROVIDERS[p];
-  const model = localStorage.getItem(`model_${p}`) || cfg.models[0];
+  const d = drafts[p];
+  const model = (d ? d.model : localStorage.getItem(`model_${p}`)) || cfg.models[0];
+  shown = p;
   $("provider").value = p;
   $("keyLabel").textContent = cfg.keyLabel;
   $("apiKey").placeholder = cfg.keyHint;
-  $("apiKey").value = localStorage.getItem(`key_${p}`) ?? "";
+  $("apiKey").value = d ? d.key : localStorage.getItem(`key_${p}`) ?? "";
   const sel = $("modelSelect");
   sel.innerHTML = "";
   cfg.models.forEach((m) => sel.append(new Option(m, m)));
@@ -164,20 +176,26 @@ function fillSettings(p) {
   $("modelCustom").hidden = known;
 }
 
-$("provider").onchange = () => fillSettings($("provider").value);
+$("provider").onchange = () => {
+  stashSettings();
+  fillSettings($("provider").value);
+};
 $("modelSelect").onchange = () => ($("modelCustom").hidden = $("modelSelect").value !== CUSTOM);
 
 $("settingsBtn").onclick = () => {
+  drafts = {};
+  shown = null;
   fillSettings(currentProvider());
   $("settings").showModal();
 };
 $("settings").onclose = () => {
   if ($("settings").returnValue === "save") {
-    const p = $("provider").value;
-    const model = $("modelSelect").value === CUSTOM ? $("modelCustom").value.trim() : $("modelSelect").value;
-    localStorage.setItem("provider", p);
-    localStorage.setItem(`key_${p}`, $("apiKey").value.trim());
-    localStorage.setItem(`model_${p}`, model);
+    stashSettings();
+    for (const [p, d] of Object.entries(drafts)) {
+      localStorage.setItem(`key_${p}`, d.key);
+      localStorage.setItem(`model_${p}`, d.model);
+    }
+    localStorage.setItem("provider", $("provider").value);
   }
 };
 
