@@ -1,6 +1,10 @@
 const $ = (id) => document.getElementById(id);
 const load = (k, d) => JSON.parse(localStorage.getItem(k) ?? JSON.stringify(d));
-const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+let onDataChanged = () => {};
+const save = (k, v) => {
+  localStorage.setItem(k, JSON.stringify(v));
+  onDataChanged();
+};
 
 let items = load("items", []);
 
@@ -266,73 +270,6 @@ function showTab(name) {
 document.querySelectorAll(".tab").forEach((t) => (t.onclick = () => showTab(t.dataset.tab)));
 $("goIngredients").onclick = () => showTab("pantry");
 
-const PROVIDERS = {
-  gemini: { keyLabel: "Gemini API key", keyHint: "AIza...", models: ["gemini-3.8-flash", "gemini-2.5-pro"] },
-  claude: { keyLabel: "Claude API key", keyHint: "sk-ant-...", models: ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-5"] },
-  openai: { keyLabel: "OpenAI API key", keyHint: "sk-...", models: ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4o"] },
-};
-const CUSTOM = "__custom";
-
-// Migrate settings from the single-provider version.
-if (localStorage.getItem("apiKey") && !localStorage.getItem("key_gemini")) {
-  localStorage.setItem("key_gemini", localStorage.getItem("apiKey"));
-  localStorage.setItem("model_gemini", localStorage.getItem("model") ?? "");
-}
-
-const currentProvider = () => localStorage.getItem("provider") || "gemini";
-
-// Unsaved per-provider edits made in the dialog, so switching providers keeps what was typed.
-let drafts = {};
-let shown = null;
-
-const chosenModel = () => ($("modelSelect").value === CUSTOM ? $("modelCustom").value.trim() : $("modelSelect").value);
-
-function stashSettings() {
-  if (shown) drafts[shown] = { key: $("apiKey").value.trim(), model: chosenModel() };
-}
-
-function fillSettings(p) {
-  const cfg = PROVIDERS[p];
-  const d = drafts[p];
-  const model = (d ? d.model : localStorage.getItem(`model_${p}`)) || cfg.models[0];
-  shown = p;
-  $("provider").value = p;
-  $("keyLabel").textContent = cfg.keyLabel;
-  $("apiKey").placeholder = cfg.keyHint;
-  $("apiKey").value = d ? d.key : localStorage.getItem(`key_${p}`) ?? "";
-  const sel = $("modelSelect");
-  sel.innerHTML = "";
-  cfg.models.forEach((m) => sel.append(new Option(m, m)));
-  sel.append(new Option("Other (type name)…", CUSTOM));
-  const known = cfg.models.includes(model);
-  sel.value = known ? model : CUSTOM;
-  $("modelCustom").value = known ? "" : model;
-  $("modelCustom").hidden = known;
-}
-
-$("provider").onchange = () => {
-  stashSettings();
-  fillSettings($("provider").value);
-};
-$("modelSelect").onchange = () => ($("modelCustom").hidden = $("modelSelect").value !== CUSTOM);
-
-$("settingsBtn").onclick = () => {
-  drafts = {};
-  shown = null;
-  fillSettings(currentProvider());
-  $("settings").showModal();
-};
-$("settings").onclose = () => {
-  if ($("settings").returnValue === "save") {
-    stashSettings();
-    for (const [p, d] of Object.entries(drafts)) {
-      localStorage.setItem(`key_${p}`, d.key);
-      localStorage.setItem(`model_${p}`, d.model);
-    }
-    localStorage.setItem("provider", $("provider").value);
-  }
-};
-
 function showMarkdown(text) {
   // Minimal rendering: escape HTML, then handle headings, bold and bullets.
   const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -341,60 +278,6 @@ function showMarkdown(text) {
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/^[-*]\s+(.+)$/gm, "• $1")
     .replace(/\n/g, "<br>");
-}
-
-const SYSTEM = "You are a practical home-cooking assistant.";
-
-async function askAI(prompt) {
-  const p = currentProvider();
-  const key = localStorage.getItem(`key_${p}`);
-  const model = localStorage.getItem(`model_${p}`) || PROVIDERS[p].models[0];
-
-  if (p === "openai") {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: prompt }],
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-    return data.choices[0].message.content;
-  }
-
-  if (p === "claude") {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({ model, max_tokens: 4096, system: SYSTEM, messages: [{ role: "user", content: prompt }] }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-    return data.content.map((c) => c.text ?? "").join("");
-  }
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    }
-  );
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? res.statusText);
-  return data.candidates[0].content.parts.map((p) => p.text).join("");
 }
 
 // Progress is simulated: it eases toward 90% and jumps to 100% when the answer arrives.
@@ -437,28 +320,22 @@ function startLoading() {
 }
 
 $("askBtn").onclick = async () => {
-  const key = localStorage.getItem(`key_${currentProvider()}`);
-  if (!key) return $("settingsBtn").click();
+  if (!cloudUser) {
+    $("settingsBtn").click();
+    $("accountStatus").textContent = "Sign in to find recipes.";
+    return;
+  }
   if (!items.length) return showMarkdown("Add some ingredients first.");
-
-  const cuisine = $("cuisine").value;
-  const only = $("onlyHave").checked;
-  const prompt =
-    `My ingredients: ${items.join(", ")}.\n` +
-    `Suggest 3 to 5 recipes I can cook${cuisine ? ` in the ${cuisine} style` : ""}. ` +
-    (only
-      ? "Use ONLY these ingredients (plus salt, pepper, water, and basic oil). "
-      : "Mark any extra ingredients I would need to buy. ") +
-    (priority.size ? `Prioritize recipes that use these ingredients: ${[...priority].join(", ")}. ` : "") +
-    "Return ONLY a JSON array of recipes, each shaped like " +
-    '{"title": string, "ingredients": string[] (with amounts), "steps": string[]}. ' +
-    "Keep steps short.";
 
   $("askBtn").disabled = true;
   const loader = startLoading();
   try {
-    const text = await askAI(prompt);
-    const recipes = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]") + 1));
+    const recipes = await cloud.recipes({
+      ingredients: items,
+      cuisine: $("cuisine").value,
+      onlyHave: $("onlyHave").checked,
+      priority: [...priority],
+    });
     await loader.finish();
     showRecipes(recipes);
   } catch (err) {

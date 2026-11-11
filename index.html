@@ -12,7 +12,7 @@
 <body>
   <header>
     <h1>Kookapp</h1>
-    <button id="settingsBtn" aria-label="Settings">⚙</button>
+    <button id="settingsBtn" aria-label="Account and sync">⚙</button>
   </header>
 
   <nav>
@@ -119,28 +119,37 @@
   </main>
 
   <dialog id="settings">
-    <form method="dialog">
-      <h2>Settings</h2>
-      <label>AI provider
-        <select id="provider">
-          <option value="gemini">Google Gemini</option>
-          <option value="claude">Anthropic Claude</option>
-          <option value="openai">OpenAI</option>
-        </select>
+    <h2>Account &amp; sync</h2>
+    <p id="accountStatus" class="hint" role="status" aria-live="polite"></p>
+    <form id="authForm">
+      <label>Email
+        <input id="authEmail" type="email" autocomplete="email" required>
       </label>
-      <label><span id="keyLabel">API key</span>
-        <input id="apiKey" type="password" autocomplete="off">
+      <label>Password
+        <input id="authPassword" type="password" autocomplete="current-password" required minlength="6">
       </label>
-      <label>Model
-        <select id="modelSelect"></select>
-      </label>
-      <input id="modelCustom" placeholder="Model name" autocomplete="off" hidden>
-      <p class="hint">Stored only on this device. Claude needs an API key from console.anthropic.com (a Claude.ai subscription does not include API access).</p>
-      <button value="save" class="primary">Save</button>
-      <button value="cancel" class="small">Cancel</button>
+      <div class="tools">
+        <button type="submit">Sign in</button>
+        <button id="signUp" type="button">Create account</button>
+      </div>
     </form>
+    <button id="forgetSession" type="button" class="small" hidden>Remove stored session from this device</button>
+    <div id="signedIn" hidden>
+      <p id="accountEmail"></p>
+      <p id="syncStatus" class="hint" role="status" aria-live="polite"></p>
+      <div id="syncChoice" hidden>
+        <p class="hint">Choose a copy to keep. This replaces the other copy; changes are not merged.</p>
+        <button id="useCloud" type="button">Use cloud copy on this device</button>
+        <button id="uploadLocal" type="button">Upload this device to cloud</button>
+      </div>
+      <button id="syncNow" type="button">Check sync</button>
+      <button id="signOut" type="button">Sign out</button>
+    </div>
+    <form method="dialog"><button id="closeAccount" class="small">Continue without an account</button></form>
   </dialog>
 
-  <script src="app.js?v=4"></script>
+  <script src="cloud.js?v=3"></script>
+  <script src="app.js?v=5"></script>
+  <script src="sync.js?v=3"></script>
 </body>
 </html>
